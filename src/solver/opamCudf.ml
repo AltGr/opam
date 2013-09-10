@@ -396,7 +396,11 @@ let call_external_solver ~explain univ req =
     (* No external solver is available, use the default one *)
     Algo.Depsolver.check_request ~explain cudf_request
   | Some path ->
-    if Cudf.universe_size univ > 0 then begin
+    let _,_,req = cudf_request in
+    if Cudf.universe_size univ > 0 &&
+       Cudf.(req.install <> [] || req.remove <> [] ||
+             req.upgrade <> [] || req.req_extra <> [])
+    then begin
       let cmd = aspcud_command path in
       let criteria = OpamGlobals.aspcud_criteria in
       try Algo.Depsolver.check_request ~cmd ~criteria ~explain:true cudf_request
