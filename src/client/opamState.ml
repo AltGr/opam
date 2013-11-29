@@ -89,12 +89,25 @@ let universe t action =
         if OpamFilename.exists overlay then OpamFile.OPAM.read overlay
         else opam)
       t.opams in
+  let compiler_packages =
+    let comp =
+      OpamFile.Comp.safe_read (OpamPath.compiler_comp t.root t.compiler) in
+    OpamFile.Comp.packages comp in
+  let compiler_package_names =
+    List.map fst (OpamFormula.atoms compiler_packages) in
   {
     u_packages  = OpamPackage.Set.union t.installed t.packages;
     u_action    = action;
     u_installed = t.installed;
     u_available = Lazy.force t.available_packages;
-    u_depends   = OpamPackage.Map.map OpamFile.OPAM.depends opams;
+    u_depends   =
+      OpamPackage.Map.map
+        (fun opam ->
+           if List.mem (OpamFile.OPAM.name opam) compiler_package_names
+           then OpamFile.OPAM.depends opam
+           else OpamFormula.And (compiler_packages,
+                                 OpamFile.OPAM.depends opam))
+        opams;
     u_depopts   = OpamPackage.Map.map OpamFile.OPAM.depopts opams;
     u_conflicts = OpamPackage.Map.map OpamFile.OPAM.conflicts opams;
     u_installed_roots = t.installed_roots;
