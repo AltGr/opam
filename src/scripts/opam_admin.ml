@@ -41,11 +41,17 @@ let depexts_cmd =
   Term.(Opam_depexts_change.(pure process $ args)),
   Term.info "depexts" ~doc
 
+let comp_to_packages_cmd =
+  let doc = "Move build instructions from compiler definitions to packages." in
+  Term.(Opam_comp_to_packages.(pure process $ args)),
+  Term.info "comp_to_packages" ~doc
+
 let () =
   try
     match
       Term.eval_choice ~catch:false
-        default_cmd [make_repo_cmd; check_repo_cmd; stats_cmd; depexts_cmd]
+        default_cmd
+        [make_repo_cmd; check_repo_cmd; stats_cmd; depexts_cmd; comp_to_packages_cmd]
     with
     | `Error _ -> exit 2
     | _ -> exit 0

@@ -11,6 +11,7 @@ begin program "opam-admin"
     "opam_repo_check.ml"
     "opam_stats.ml"
     "opam_depexts_change.ml"
+    "opam_comp_to_packages.ml"
     "opam_admin.ml"
   ]
   requires = [ "opam-client" ]
