@@ -220,9 +220,15 @@ module API = struct
             if !OpamGlobals.color && OpamPackage.Name.Set.mem name roots then
               OpamGlobals.colorise `underline name_str
             else name_str in
-          let version = match installed_version with
-            | None   -> s_not_installed
-            | Some v -> OpamPackage.Version.to_string v in
+          let version =
+            if OpamState.is_base_package t name then
+              OpamPackage.Version.to_string
+                (OpamPackage.version
+                   (OpamState.pinning_version t
+                      (OpamPackage.create name OpamPackage.Version.pinned)))
+            else match installed_version with
+              | None   -> s_not_installed
+              | Some v -> OpamPackage.Version.to_string v in
           let colored_version =
             if installed_version = Some OpamPackage.Version.pinned
             then OpamGlobals.colorise `blue version
@@ -943,9 +949,11 @@ module API = struct
     let atoms = OpamSolution.atoms_of_names ~permissive:true t names in
     let atoms =
       List.filter (fun (n,_) ->
-        if n = OpamPackage.Name.global_config then (
+        if n = OpamPackage.Name.global_config
+        || OpamState.is_base_package t n
+        then (
           OpamGlobals.msg "Package %s can not be removed.\n"
-            (OpamPackage.Name.to_string OpamPackage.Name.global_config);
+            (OpamPackage.Name.to_string n);
           false
         ) else
           true

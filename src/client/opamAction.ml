@@ -344,6 +344,12 @@ let remove_package_aux t ~metadata ~rm_build ?(silent=false) nv =
   log "Removing %s (%b)" (OpamPackage.to_string nv) metadata;
   let name = OpamPackage.name nv in
 
+  if OpamState.is_base_package t name then
+      OpamGlobals.error_and_exit
+        "Package %s can't be removed because it is part of the core \
+         packages of the current compiler"
+        (OpamPackage.Name.to_string name);
+
   (* Run the remove script *)
   let opam = OpamState.opam_opt t nv in
 

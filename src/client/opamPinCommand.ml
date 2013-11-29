@@ -48,6 +48,11 @@ let pin ~force action =
     if not (OpamState.is_pinned t name) then
       OpamGlobals.error_and_exit "%s is not pinned."
         (OpamPackage.Name.to_string name);
+    if not force && OpamState.is_base_package t name then
+      OpamGlobals.error_and_exit
+        "Pinning of package %s can't be edited because it is part of the core \
+         packages of the current switch"
+        (OpamPackage.Name.to_string name);
     let editor =
       try OpamMisc.getenv "OPAM_EDITOR"
       with Not_found ->
@@ -63,6 +68,11 @@ let pin ~force action =
   | Unpin ->
     if not (OpamPackage.Name.Map.mem name pins) then
       OpamGlobals.error_and_exit "%s is not pinned." (OpamPackage.Name.to_string name);
+    if not force && OpamState.is_base_package t name then
+      OpamGlobals.error_and_exit
+        "Package %s can't be unpinned because it is part of the core packages of the \
+         current switch"
+        (OpamPackage.Name.to_string name);
     begin match OpamPackage.Name.Map.find name pins with
       | Version _ -> ()
       | _         ->

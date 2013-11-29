@@ -856,6 +856,10 @@ let get_compiler_packages t comp =
     pkg_available
   )
 
+let is_base_package t name =
+  let base_packages = get_compiler_packages t t.compiler in
+  List.exists (fun (n,_) -> n = name) base_packages
+
 let is_compiler_installed t comp =
   OpamSwitch.Map.exists (fun _ c -> c = comp) t.aliases
 

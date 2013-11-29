@@ -219,6 +219,9 @@ val update_switch_config: state -> switch -> unit
 (** Get the packages associated with the given compiler *)
 val get_compiler_packages: state -> compiler -> atom list
 
+(** Returns true if the package name is among the base packages of this switch *)
+val is_base_package: state -> OpamPackage.Name.t -> bool
+
 (** Is a compiler installed ? *)
 val is_compiler_installed: state -> compiler -> bool
 
