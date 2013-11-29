@@ -728,7 +728,9 @@ let available_packages t system =
       let has_reposiotry () =
         OpamPackage.Map.mem nv t.package_index in
       let available () =
-        OpamFilter.eval env (OpamFile.OPAM.available opam) in
+        try
+          OpamFilter.eval env (OpamFile.OPAM.available opam)
+        with OpamGlobals.Exit _ -> false in
       consistent_ocaml_version ()
       && consistent_os ()
       && available ()
