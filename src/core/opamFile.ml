@@ -1580,10 +1580,6 @@ module X = struct
       if build <> [] && (configure @ make) <> [] then
         OpamGlobals.error_and_exit
           "You cannot use 'build' and 'make'/'configure' fields at the same time.";
-      if not preinstalled && src = None then
-        OpamGlobals.error_and_exit
-          "You should either specify an url (with 'sources')  or use 'preinstalled: \
-           true' to pick the already installed compiler version.";
       { opam_version; name; version; src; kind;
         patches; configure; make; build;
         bytecomp; asmcomp; bytelink; asmlink; packages;

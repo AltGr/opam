@@ -1966,7 +1966,9 @@ let install_compiler t ~quiet switch compiler =
 
   let comp = OpamFile.Comp.read comp_f in
   begin try
-      if not (OpamFile.Comp.preinstalled comp) then begin
+      if not (OpamFile.Comp.preinstalled comp) &&
+         OpamFile.Comp.src comp <> None
+      then begin
 
         OpamGlobals.verbose := not quiet;
 
