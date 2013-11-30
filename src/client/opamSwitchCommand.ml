@@ -187,76 +187,43 @@ let install_packages ~packages switch compiler =
       let roots = OpamPackage.Name.Set.of_list (List.map fst to_install) in
       to_install, roots in
 
-  let bad_packages =
-    OpamMisc.filter_map (fun (n, c) ->
-      if OpamState.is_name_installed t n then (
-        let nv = OpamState.find_installed_package_by_name t n in
-        if c = Some (`Eq, OpamPackage.version nv) then
-          None
-        else
-          Some (n, Some (OpamPackage.version nv))
-      ) else
-        None
-    ) to_install in
-
-  let package_error = function
-    | n, None   ->
-      OpamGlobals.error "%s is an invalid package" (OpamPackage.Name.to_string n)
-    | n, Some v ->
-      OpamGlobals.error "%s.%s is not available for the current compiler"
-        (OpamPackage.Name.to_string n)
-        (OpamPackage.Version.to_string v) in
-
-  let remove_compiler () =
-    let t = OpamState.load_state "remove-compiler" in
-    remove_t switch t in
-
-  match bad_packages with
-  | p::_ ->
-    remove_compiler ();
-    package_error p
-  | [] ->
-    try
-      let solution =
-        OpamSolution.resolve t (Switch roots)
-          { wish_install = to_install;
-            wish_remove  = [];
-            wish_upgrade = []; } in
-      let solution = match solution with
-        | Success s -> s
-        | _ -> OpamGlobals.error_and_exit "Could not resolve set of base packages" in
-      if solution.PackageActionGraph.to_remove <> [] then
-        OpamGlobals.error_and_exit "Inconsistent resolution of base package installs";
-      let to_install_pkgs =
-        PackageActionGraph.fold_vertex (fun action acc -> match action with
-              | To_change (None, p) -> OpamPackage.Set.add (p:OpamPackage.t) acc
-              | a ->
-                OpamGlobals.error_and_exit
-                  "Inconsistent set of base compiler packages. (unexpected action %s)"
-                  (PackageAction.string_of_action a))
-          solution.PackageActionGraph.to_process
-          OpamPackage.Set.empty in
-      let to_install_names = OpamPackage.names_of_packages to_install_pkgs in
-      if not (OpamPackage.Name.Set.equal to_install_names roots)
-      then
-        OpamGlobals.error_and_exit
-          "Inconsistent set of base compiler packages: %s needed but not included"
-          OpamPackage.Name.Set.(to_string (diff to_install_names roots));
-      let pinned =
-        OpamPackage.Set.fold (fun pkg pins ->
-            OpamPackage.Name.Map.add
-              (OpamPackage.name pkg) (Version (OpamPackage.version pkg))
-              pins)
-          to_install_pkgs
-          OpamPackage.Name.Map.empty in
-      OpamFile.Pinned.write (OpamPath.Switch.pinned t.root t.switch) pinned;
-      let t = { t with pinned } in
-      OpamPackage.Name.Set.iter (OpamState.add_pinned_overlay t) to_install_names;
-      let result = OpamSolution.apply ~force:true t (Switch roots) solution in
-      OpamSolution.check_solution t result
-    with e ->
-      remove_compiler ();
-      raise e
+  let solution =
+    OpamSolution.resolve t (Switch roots)
+      { wish_install = to_install;
+        wish_remove  = [];
+        wish_upgrade = []; } in
+  let solution = match solution with
+    | Success s -> s
+    | _ -> OpamGlobals.error_and_exit "Could not resolve set of base packages" in
+  if solution.PackageActionGraph.to_remove <> [] then
+    OpamGlobals.error_and_exit "Inconsistent resolution of base package installs";
+  let to_install_pkgs =
+    PackageActionGraph.fold_vertex (fun action acc -> match action with
+        | To_change (None, p) -> OpamPackage.Set.add (p:OpamPackage.t) acc
+        | a ->
+          OpamGlobals.error_and_exit
+            "Inconsistent set of base compiler packages. (unexpected action %s)"
+            (PackageAction.string_of_action a))
+      solution.PackageActionGraph.to_process
+      OpamPackage.Set.empty in
+  let to_install_names = OpamPackage.names_of_packages to_install_pkgs in
+  if not (OpamPackage.Name.Set.equal to_install_names roots)
+  then
+    OpamGlobals.error_and_exit
+      "Inconsistent set of base compiler packages: %s needed but not included"
+      OpamPackage.Name.Set.(to_string (diff to_install_names roots));
+  let pinned =
+    OpamPackage.Set.fold (fun pkg pins ->
+        OpamPackage.Name.Map.add
+          (OpamPackage.name pkg) (Version (OpamPackage.version pkg))
+          pins)
+      to_install_pkgs
+      OpamPackage.Name.Map.empty in
+  OpamFile.Pinned.write (OpamPath.Switch.pinned t.root t.switch) pinned;
+  let t = { t with pinned } in
+  OpamPackage.Name.Set.iter (OpamState.add_pinned_overlay t) to_install_names;
+  let result = OpamSolution.apply ~force:true t (Switch roots) solution in
+  OpamSolution.check_solution t result
 
 let install_with_packages ~quiet ~packages switch compiler =
   install_compiler ~quiet switch compiler;
@@ -270,7 +237,10 @@ let install ~quiet ~warning ~update_config switch compiler =
   && not (OpamFilename.exists comp_f) then
     OpamCompiler.unknown compiler;
   if not (OpamState.is_switch_installed t switch) then
-    install_with_packages ~quiet ~packages:None switch compiler
+    try install_with_packages ~quiet ~packages:None switch compiler
+    with e ->
+      remove_t switch t;
+      raise e
   else (
     let a = OpamSwitch.Map.find switch t.aliases in
     if a <> compiler then
