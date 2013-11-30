@@ -1053,6 +1053,12 @@ module API = struct
     log "reinstall %s" (OpamPackage.Name.Set.to_string names);
     let t, _, _ = removed_from_upstream t in
     let atoms = OpamSolution.atoms_of_names t names in
+    let bases = OpamPackage.Name.Set.filter(OpamState.is_base_package t) names in
+    if not (OpamPackage.Name.Set.is_empty bases) then
+      OpamGlobals.error_and_exit
+        "%s can't be reinstalled because it is part of the core \
+         packages of the current compiler"
+        (OpamPackage.Name.Set.to_string bases);
     let reinstall =
       List.map (function (n,v) ->
         match v with
