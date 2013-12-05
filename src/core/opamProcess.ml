@@ -79,7 +79,7 @@ let create ?info_file ?env_file ?stdout_file ?stderr_file ?env ?(metadata=[])
   let tee f =
     let fd = Unix.openfile f open_flags 0o644 in
     let close_fd () = Unix.close fd in
-    if verbose then (
+    if false && verbose then (
       flush stderr;
       let chan = Unix.open_process_out ("tee -a " ^ Filename.quote f) in
       let close () =

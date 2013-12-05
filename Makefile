@@ -1,7 +1,8 @@
 -include Makefile.config
 
-LOCAL_OCPBUILD=./ocp-build/ocp-build -no-use-ocamlfind
+LOCAL_OCPBUILD=./ocp-build/ocp-build
 OCPBUILD ?= $(LOCAL_OCPBUILD)
+OCPBUILD_ARGS = -no-use-ocamlfind
 SRC_EXT=src_ext
 TARGETS = opam opam-admin
 
@@ -17,13 +18,13 @@ cold:
 	env PATH=$$PATH:`pwd`/bootstrap/ocaml/bin $(MAKE)
 
 scan: $(LOCAL_OCPBUILD)
-	$(OCPBUILD) -scan
+	$(OCPBUILD) -scan $(OCPBUILD_ARGS)
 sanitize: $(LOCAL_OCPBUILD)
-	$(OCPBUILD)
+	$(OCPBUILD) $(OCPBUILD_ARGS)
 byte: $(LOCAL_OCPBUILD)
-	$(OCPBUILD) -byte
+	$(OCPBUILD) -byte $(OCPBUILD_ARGS)
 opt: $(LOCAL_OCPBUILD)
-	$(OCPBUILD) -asm
+	$(OCPBUILD) -asm $(OCPBUILD_ARGS)
 
 OCAMLBUILD_FLAGS=\
 	-Is src/core,src/client,src/repositories,src/solver,src/scripts \
@@ -53,7 +54,8 @@ prepare: depends.ocp.in
 autogen: src/core/opamGitVersion.ml src/core/opamScript.ml src/core/opamVersion.ml
 
 compile: $(LOCAL_OCPBUILD) autogen
-	$(OCPBUILD) -init -scan $(TARGET)
+	$(OCPBUILD) init
+	$(OCPBUILD) $(TARGET) $(OCPBUILD_ARGS)
 
 clone: src/core/opamVersion.ml
 	$(MAKE) -C $(SRC_EXT)

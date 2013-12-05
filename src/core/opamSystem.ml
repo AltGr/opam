@@ -577,7 +577,7 @@ let really_download ~overwrite ~src ~dst =
   try with_tmp_dir (fun tmp_dir -> in_dir tmp_dir aux)
   with
   | Internal_error s as e -> OpamGlobals.error "%s" s; raise e
-  | _ -> internal_error "Cannot download %s, please check your connection settings." src
+  | e -> internal_error "Cannot download %s, please check your connection settings. (%s)" src (Printexc.to_string e)
 
 let download ~overwrite ~filename:src ~dst:dst =
   if dst = src then

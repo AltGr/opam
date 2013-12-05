@@ -18,6 +18,17 @@ module Base = OpamMisc.Base
 
 let log fmt = OpamGlobals.log "FILENAME" fmt
 
+module Filename = struct
+  include Filename
+  let concat =
+    let url = Re_perl.compile (Re_perl.re "^[a-zA-Z]+:/") in
+    fun a b ->
+      if Re.execp url a then
+        if a.[String.length a - 1] = '/' then a^b
+        else a^"/"^b
+      else Filename.concat a b
+end
+
 module Dir = struct
 
   include OpamMisc.Base
