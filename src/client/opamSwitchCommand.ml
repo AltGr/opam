@@ -358,12 +358,22 @@ let import_t importfile t =
 
       let roots = OpamPackage.names_of_packages import_roots in
 
-      OpamSolution.resolve_and_apply t (Import roots)
-        ~requested:(OpamPackage.names_of_packages imported)
-        { wish_install = to_import;
-          wish_remove  = [];
-          wish_upgrade = [];
-          criteria = !OpamGlobals.solver_preferences; }
+      if OpamCudf.external_solver_available () then
+        OpamSolution.resolve_and_apply
+          {t with available_packages = lazy (available ++ t.installed)}
+          (Import roots)
+          ~requested:(OpamPackage.names_of_packages imported)
+          { wish_install = [];
+            wish_remove  = [];
+            wish_upgrade = [];
+            criteria = "+new,-removed,+changed"; }
+      else
+        OpamSolution.resolve_and_apply t (Import roots)
+          ~requested:(OpamPackage.names_of_packages imported)
+          { wish_install = to_import;
+            wish_remove  = [];
+            wish_upgrade = [];
+            criteria = !OpamGlobals.solver_preferences; }
     with e ->
       revert_pins ();
       raise e
