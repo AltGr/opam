@@ -1,5 +1,7 @@
 -include Makefile.config
 
+OCPBUILD = PATH=$(PATH) ocp-build
+
 all: opam-lib opam opam-admin opam-installer
 	@
 
@@ -125,19 +127,19 @@ prefast: rmartefacts src/client/opamGitVersion.ml src/state/opamScript.ml src/co
 
 fast: prefast
 	@rm -f src/x_build_libs.ocp
-	@ocp-build init
-	@ocp-build
+	@$(OCPBUILD) init
+	@$(OCPBUILD)
 	@$(MAKE) fastlink
 
 opam-core opam-format opam-solver opam-repository opam-state opam-client opam-tools: prefast
-	@ocp-build init
+	@$(OCPBUILD) init
 	@echo "build_libs = [ \"$*\" ]" > src/x_build_libs.ocp
-	@ocp-build
+	@$(OCPBUILD)
 	@rm -f src/x_build_libs.ocp
 
 fastclean: rmartefacts
 	@rm -f src/x_build_libs.ocp
-	@ocp-build -clean 2>/dev/null || ocp-build clean 2>/dev/null
+	@$(OCPBUILD) -clean 2>/dev/null || $(OCPBUILD) clean 2>/dev/null
 	@rm -rf src/*/_obuild
 
 cold:
