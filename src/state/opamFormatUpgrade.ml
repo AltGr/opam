@@ -772,7 +772,10 @@ let from_2_0_alpha2_to_2_0_alpha3 root conf =
     (OpamFile.Config.installed_switches conf);
   conf
 
-let latest_version = v2_0_alpha3
+(* No format changes from 2.0~alpha3 *)
+let v2_0_beta = OpamVersion.of_string "2.0~beta"
+
+let latest_version = v2_0_beta
 
 let as_necessary global_lock root config =
   let config_version = OpamFile.Config.opam_version config in
@@ -826,7 +829,7 @@ let as_necessary global_lock root config =
       update_to v1_3_dev7  from_1_3_dev6_to_1_3_dev7 |>
       update_to v2_0_alpha from_1_3_dev7_to_2_0_alpha |>
       update_to v2_0_alpha2 from_2_0_alpha_to_2_0_alpha2 |>
-      update_to v2_0_alpha3 from_2_0_alpha2_to_2_0_alpha3
+      update_to v2_0_beta from_2_0_alpha2_to_2_0_alpha3
     else
       OpamConsole.error_and_exit "Aborted"
   with OpamSystem.Locked ->
