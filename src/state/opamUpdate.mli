@@ -79,7 +79,7 @@ val pinned_package:
 
     Does not print the results as it used to. *)
 val download_package_source:
-  'a switch_state -> package -> dirname ->
+  'a switch_state -> ?working_dir:bool -> package -> dirname ->
   (string download option * (string * string download) list) OpamProcess.job
 
 (** [cleanup_source old_opam_option new_opam] checks if the remote URL has
