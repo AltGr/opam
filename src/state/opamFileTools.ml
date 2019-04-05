@@ -669,7 +669,7 @@ let lint ?check_extra_files ?(check_upstream=false) t =
             if not_corresponding = [] then None
             else
             let msg =
-              Printf.sprintf "Cheksum%s %s don't verify archive"
+              Printf.sprintf "Checksum%s %s don't verify archive"
                 (if List.length chks = 1 then "" else "s")
                 (OpamStd.List.to_string OpamHash.to_string not_corresponding)
             in
@@ -685,6 +685,31 @@ let lint ?check_extra_files ?(check_upstream=false) t =
      cond 61 `Warning
        "`with-test` variable in `run-test` is out of scope, it will be ignored"
        with_test);
+    (let subpath =
+       match  OpamStd.String.Map.find_opt "x-subpath" (extensions t) with
+       | Some (String (_,_)) -> true
+       | _ -> false
+     in
+     let opam_restriction =
+       OpamFilter.fold_down_left (fun acc filter ->
+           if acc then acc
+           else
+           match filter with
+           | FOp (FIdent (_, var, _), `Eq, FString version) ->
+             OpamVariable.to_string var = "opam-version" && version = "2.1"
+           | _ -> false) false t.available
+     in
+     cond 62 `Error
+       "`subpath` field need `opam-version = 2.1` restriction"
+       (subpath && not opam_restriction));
+    (let subpath_string =
+       match  OpamStd.String.Map.find_opt "x-subpath" (extensions t) with
+       | Some (String (_,_)) | None -> false
+       | _ -> true
+     in
+     cond 63 `Warning
+       "`x-subpath` must be a simple string to be considered as a subpath`"
+       subpath_string);
   ]
   in
   format_errors @
