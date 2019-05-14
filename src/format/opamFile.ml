@@ -2275,16 +2275,14 @@ module OPAMSyntax = struct
     let available =
       let opam_restricted =
         OpamFilter.fold_down_left (fun acc filter ->
-            if acc then acc
-            else
+            if acc then acc else
             match filter with
             | FOp (FIdent (_, var, _), (`Eq|`Geq), FString version) ->
               var = opam_version &&
               OpamVersion.(compare (of_string version) (of_string "2.1")) >= 0
             | _ -> false) false t.available
       in
-      if opam_restricted then t.available
-      else
+      if opam_restricted then t.available else
       let opam_restriction =
         FOp (FIdent ([], opam_version, None), `Geq, FString "2.1")
       in
@@ -2663,6 +2661,42 @@ module OPAMSyntax = struct
     in
     Pp.pp parse (fun x -> x)
 
+  let handle_subpath_2_0 =
+    let subpath_xfield = "x-subpath" in
+    let parse ~pos:_ t =
+      match OpamStd.String.Map.find_opt subpath_xfield t.extensions with
+      | Some (_, String (pos,subpath)) ->
+        let extensions =
+          OpamStd.String.Map.remove subpath_xfield t.extensions
+        in
+        let url =
+          OpamStd.Option.Op.(t.url >>| (fun u ->
+              (match u.subpath with
+               | Some sb ->
+                 Pp.warn ~pos "%s already defined (%s) in the opam file, \
+                               it is replaced by %s."
+                   (OpamConsole.colorise `underline "subpath") sb subpath
+               | None -> ());
+              URL.with_subpath subpath u))
+        in
+        with_opam2_1_restriction { t with url; extensions }
+      | Some (pos, _) ->
+        Pp.warn ~pos ~strict:true "%s field contains a non string value"
+          (OpamConsole.colorise `underline subpath_xfield);
+        t
+      | None -> t
+
+    in
+    let print t =
+      match t.url with
+      | Some ({ URL.subpath = Some sb ; _ } as url) ->
+        add_extension t subpath_xfield (String (pos_null, sb))
+        |> with_url (URL.with_subpath_opt None url)
+        |> with_opam2_1_restriction
+      | _ -> t
+    in
+    Pp.pp parse print
+
   (* Doesn't handle package name encoded in directory name *)
   let pp_raw_fields =
     Pp.I.check_opam_version () -|
@@ -2672,7 +2706,8 @@ module OPAMSyntax = struct
       (Pp.I.fields ~name:"opam-file" ~empty ~sections fields -|
        Pp.I.on_errors (fun t e -> {t with format_errors=e::t.format_errors}) -|
        handle_flags_in_tags -|
-       handle_deprecated_available) -|
+       handle_deprecated_available -|
+       handle_subpath_2_0) -|
     Pp.pp
       (fun ~pos:_ (extensions, t) -> with_extensions extensions t)
       (fun t -> extensions t, t)
@@ -2680,8 +2715,7 @@ module OPAMSyntax = struct
   let pp_raw = Pp.I.map_file @@ pp_raw_fields
 
   let pp =
-    let subpath_xfield = "x-subpath" in
-       pp_raw -|
+    pp_raw -|
     Pp.pp
       (fun ~pos:_ (filename, t) ->
          filename,
@@ -2691,44 +2725,13 @@ module OPAMSyntax = struct
            else None
          in
          let t = { t with metadata_dir } in
-         let t =
-           match OpamStd.String.Map.find_opt subpath_xfield t.extensions with
-           | Some (_, String (pos,subpath)) ->
-             let extensions =
-               OpamStd.String.Map.remove subpath_xfield t.extensions
-             in
-             let url =
-               OpamStd.Option.Op.(t.url >>| (fun u ->
-                   (match u.subpath with
-                    | Some sb ->
-                      Pp.warn ~pos "%s already defined (%s) in the opam file, \
-                                    it is replaced by %s."
-                        (OpamConsole.colorise `underline "subpath") sb subpath
-                    | None -> ());
-                   URL.with_subpath subpath u))
-             in
-              with_opam2_1_restriction { t with url; extensions }
-           | Some (pos, _) ->
-             Pp.warn ~pos ~strict:true "%s field contains a non string value"
-               (OpamConsole.colorise `underline subpath_xfield);
-             t
-           | None -> t
-         in
          match OpamPackage.of_filename filename with
          | Some nv -> with_nv nv t
          | None -> t)
       (fun (filename, t) ->
          filename,
-         let t =
-           match t.url with
-           | Some ({ URL.subpath = Some sb ; _ } as url) ->
-             add_extension t subpath_xfield (String (pos_null, sb))
-             |> with_url (URL.with_subpath_opt None url)
-             |> with_opam2_1_restriction
-           | _ -> t
-         in
          match OpamPackage.of_filename filename, t.name, t.version with
-         | Some _, None, None
+         | Some _, None, None -> t
          | None, Some _, Some _ -> t
          | None, _, _ ->
            OpamConsole.log "FILE(opam)"
