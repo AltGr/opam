@@ -703,7 +703,7 @@ let lint ?check_extra_files ?(check_upstream=false) t =
        "`subpath` field need `opam-version = 2.1` restriction"
        (subpath && not opam_restriction));
     (let subpath_string =
-       match  OpamStd.String.Map.find_opt "x-subpath" (extensions t) with
+       match OpamStd.String.Map.find_opt "x-subpath" (extensions t) with
        | Some (String (_,_)) | None -> false
        | _ -> true
      in
