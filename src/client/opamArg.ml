@@ -1163,9 +1163,9 @@ let recurse =
 
 let subpath =
   mk_opt ["subpath"] "PATH"
-    "(b,*.opam) files are retrieved from the given sub directory instead of top
-    directory. Sources are then taken from the targeted sub directory,
-    internally only this subdirectory is copied/fetched.  It can be combined
+    "(b,*.opam) files are retrieved from the given sub directory instead of top \
+    directory. Sources are then taken from the targeted sub directory, \
+    internally only this subdirectory is copied/fetched.  It can be combined \
     with $(i,--recursive) to have a recursive lookup on the subpath."
     Arg.(some string) None
 
