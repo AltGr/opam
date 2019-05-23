@@ -176,9 +176,7 @@ let download_package st nv =
       in
       Done (Some na))
   @@ fun () ->
-  OpamUpdate.download_package_source st
-    ~working_dir:OpamClientConfig.(!r.working_dir)
-    nv dir @@| function
+  OpamUpdate.download_package_source st nv dir @@| function
   | Some (Not_available (s, l)), _ ->
     let msg = match s with None -> l | Some s -> s in
     OpamConsole.error "Failed to get sources of %s: %s"
