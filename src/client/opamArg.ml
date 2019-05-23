@@ -448,6 +448,9 @@ let existing_filename_dirname_or_dash =
   in
   parse, print
 
+let subpath_conv =
+  (fun str -> `Ok (OpamStd.String.remove_prefix "./" str)), pr_str
+
 let package_name =
   let parse str =
     try `Ok (OpamPackage.Name.of_string str)
@@ -1167,7 +1170,7 @@ let subpath =
     directory. Sources are then taken from the targeted sub directory, \
     internally only this subdirectory is copied/fetched.  It can be combined \
     with $(i,--recursive) to have a recursive lookup on the subpath."
-    Arg.(some string) None
+    Arg.(some subpath_conv) None
 
 let package_selection_section = "PACKAGE SELECTION OPTIONS"
 
