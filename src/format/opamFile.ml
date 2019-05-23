@@ -2706,11 +2706,11 @@ module OPAMSyntax = struct
       (Pp.I.fields ~name:"opam-file" ~empty ~sections fields -|
        Pp.I.on_errors (fun t e -> {t with format_errors=e::t.format_errors}) -|
        handle_flags_in_tags -|
-       handle_deprecated_available -|
-       handle_subpath_2_0) -|
+       handle_deprecated_available) -|
     Pp.pp
       (fun ~pos:_ (extensions, t) -> with_extensions extensions t)
-      (fun t -> extensions t, t)
+      (fun t -> extensions t, t) -|
+    handle_subpath_2_0
 
   let pp_raw = Pp.I.map_file @@ pp_raw_fields
 
