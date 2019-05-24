@@ -449,7 +449,7 @@ let existing_filename_dirname_or_dash =
   parse, print
 
 let subpath_conv =
-  (fun str -> `Ok (OpamStd.String.remove_prefix "./" str)), pr_str
+  (fun str -> `Ok (OpamStd.String.remove_prefix ~prefix:"./" str)), pr_str
 
 let package_name =
   let parse str =
