@@ -129,6 +129,11 @@ val fold_left: ('a -> 'b -> 'a) -> 'a -> 'b formula -> 'a
 (** Fold function (bottom-up, right-to-left) *)
 val fold_right: ('a -> 'b -> 'a) -> 'a -> 'b formula -> 'a
 
+(** Sort formula, using [compare] function. By default, `Block` around `Or` and `And`
+      are set, apart if [block] is set to false. [fst] is used to not add `Block`
+      around the top formula (by default true) *)
+val sort: ?block:bool -> ?fst:bool -> ('a -> 'a -> int) -> 'a formula -> 'a formula
+
 (** Expressions composed entirely of version constraints *)
 type version_formula = version_constraint formula
 

@@ -382,6 +382,60 @@ let is_disjunction t =
   in
   aux t
 
+let sort ?(block=false) ?(fst=true) comp =
+  (* Redefine them to keep blocks around inner expressions *)
+  let ors =
+    let make_or =
+      if block then
+        fun a b ->
+          match a, b with
+          | Empty, r | r, Empty -> r
+          | a, b -> Block (Or (a, b))
+      else
+        make_or
+    in
+    List.fold_left make_or Empty
+  in
+  let ands fst =
+    let make_and =
+      if block && fst then
+        fun a b -> match a, b with
+          | Empty, r | r, Empty -> r
+          | a, b -> Block (And (a, b))
+      else
+        make_and
+    in
+    List.fold_left make_and Empty
+  in
+  let rec fst_atom = function
+    | Empty -> None
+    | Atom x -> Some x
+    | Block f | And (f,_) | Or (f,_) -> fst_atom f
+  in
+  let compare f f' =
+    match (fst_atom f), (fst_atom f') with
+    | None, None -> 0
+    | None, Some _ -> -1
+    | Some _, None -> 1
+    | Some x, Some x' -> comp x x'
+  in
+  let rec aux ?(fst=false) f =
+    match f with
+    | (Empty | Atom _) as f -> f
+    | Block f -> Block (aux f)
+    | And _ as f ->
+      ands_to_list f
+      |> List.rev_map aux
+      |> List.sort compare
+      |> ands (not fst)
+    | Or _ as f ->
+      ors_to_list f
+      |> List.rev_map aux
+      |> List.sort compare
+      |> ors
+  in
+  aux ~fst
+
 let atoms t =
   fold_right (fun accu x -> x::accu) [] (to_atom_formula t)
 
