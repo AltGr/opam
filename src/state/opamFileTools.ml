@@ -966,3 +966,36 @@ let read_repo_opam ~repo_name ~repo_root dir =
   read_opam dir >>|
   OpamFile.OPAM.with_metadata_dir
     (Some (Some repo_name, OpamFilename.remove_prefix_dir repo_root dir))
+
+let sort_opam opam =
+  let sort_formula comp = OpamFormula.sort ~block:true ~fst:true comp in
+  let sort =
+    sort_formula (fun (n,_) (n',_) ->
+        OpamPackage.Name.compare n n')
+  in
+  let fst_sort ?comp =
+    let comp =
+      match comp with
+      | Some comp -> comp
+      | None -> compare
+    in
+    fun l -> List.sort (fun (e,_) (e',_) -> comp e e') l
+  in
+  let author = List.sort compare opam.author in
+  let tags = List.sort compare opam.tags in
+  let depexts = fst_sort opam.depexts in
+  let depends = sort opam.depends in
+  let depopts = sort opam.depopts in
+  let conflicts = sort opam.conflicts in
+  let pin_depends = fst_sort ~comp:OpamPackage.compare opam.pin_depends in
+  let extra_files = OpamStd.Option.map fst_sort opam.extra_files in
+  let extra_sources = fst_sort opam.extra_sources in
+  OpamFile.OPAM.with_author author opam
+  |> OpamFile.OPAM.with_tags tags
+  |> OpamFile.OPAM.with_depends depends
+  |> OpamFile.OPAM.with_depopts depopts
+  |> OpamFile.OPAM.with_depexts depexts
+  |> OpamFile.OPAM.with_conflicts conflicts
+  |> OpamFile.OPAM.with_pin_depends pin_depends
+  |> OpamFile.OPAM.with_extra_files_opt extra_files
+  |> OpamFile.OPAM.with_extra_sources extra_sources
