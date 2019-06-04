@@ -968,10 +968,50 @@ let read_repo_opam ~repo_name ~repo_root dir =
     (Some (Some repo_name, OpamFilename.remove_prefix_dir repo_root dir))
 
 let sort_opam opam =
-  let sort_formula comp = OpamFormula.sort ~block:true ~fst:true comp in
+  log "sorting %s" (OpamPackage.to_string (package opam));
+  (* order is increasingly:
+     - build
+     - nothing
+     - build & test
+     - test
+     - build & doc
+     - doc
+     - build & test & doc
+     - test & doc
+     - post
+  *)
+  let to_prio ~build ~test ~doc ~post =
+    (if build then 0 else 1) +
+    (if test  then 2 else 0) +
+    (if doc   then 4 else 0) +
+    (if post  then 8 else 0)
+  in
+  let get_vars filter =
+    let filters =
+      OpamFormula.fold_left (fun acc -> function
+          | Constraint (_,f) | Filter f -> f::acc)
+        [] filter
+      |> List.map OpamFilter.variables
+      |> List.flatten
+    in
+    let exists var =
+      List.exists ((=) (OpamVariable.Full.of_string var)) filters
+    in
+    let build = exists "build" in
+    let test = exists "with-test" in
+    let doc = exists "with-doc" in
+    let post = exists "post" in
+    to_prio ~build ~test ~doc ~post
+  in
   let sort =
-    sort_formula (fun (n,_) (n',_) ->
-        OpamPackage.Name.compare n n')
+    OpamFormula.sort ~block:true ~fst:true
+      (fun (n,filter) (n',filter') ->
+         let filter_p = get_vars filter in
+         let filter_p' = get_vars filter' in
+         if filter_p = filter_p' then
+           OpamPackage.Name.compare n n'
+         else
+           compare filter_p filter_p')
   in
   let fst_sort ?comp =
     let comp =
@@ -990,12 +1030,12 @@ let sort_opam opam =
   let pin_depends = fst_sort ~comp:OpamPackage.compare opam.pin_depends in
   let extra_files = OpamStd.Option.map fst_sort opam.extra_files in
   let extra_sources = fst_sort opam.extra_sources in
-  OpamFile.OPAM.with_author author opam
-  |> OpamFile.OPAM.with_tags tags
-  |> OpamFile.OPAM.with_depends depends
-  |> OpamFile.OPAM.with_depopts depopts
-  |> OpamFile.OPAM.with_depexts depexts
-  |> OpamFile.OPAM.with_conflicts conflicts
-  |> OpamFile.OPAM.with_pin_depends pin_depends
-  |> OpamFile.OPAM.with_extra_files_opt extra_files
-  |> OpamFile.OPAM.with_extra_sources extra_sources
+  with_author author opam
+  |> with_tags tags
+  |> with_depends depends
+  |> with_depopts depopts
+  |> with_depexts depexts
+  |> with_conflicts conflicts
+  |> with_pin_depends pin_depends
+  |> with_extra_files_opt extra_files
+  |> with_extra_sources extra_sources
