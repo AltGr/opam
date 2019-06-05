@@ -1004,7 +1004,7 @@ let sort_opam opam =
     to_prio ~build ~test ~doc ~post
   in
   let sort =
-    OpamFormula.sort ~block:true ~fst:true
+    OpamFilter.sort_filtered_formula
       (fun (n,filter) (n',filter') ->
          let filter_p = get_vars filter in
          let filter_p' = get_vars filter' in
