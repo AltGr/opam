@@ -661,7 +661,7 @@ let atomise_extended =
         aux (FBool true) cs)
 
 let sort_filtered_formula compare ff =
-  let f = OpamFormula.sort ~block:true ~fst:true compare ff in
+  let f = OpamFormula.sort compare ff in
   let rec vc_sort = function
     | Empty -> Empty
     | Atom (n,vf) ->
