@@ -437,6 +437,10 @@ let resolve universe ~orphans request =
         opam_invariant_package version_map universe.u_invariant
       in
       Cudf.add_package u invariant_pkg;
+      (* let req =
+       *   { req with wish_install =
+       *                (invariant_pkg.Cudf.package, None) :: req.wish_install }
+       * in *)
       let resp = OpamCudf.resolve ~extern:true ~version_map u req in
       Cudf.remove_package u
         (invariant_pkg.Cudf.package, invariant_pkg.Cudf.version);

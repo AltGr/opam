@@ -611,59 +611,56 @@ let arrow_concat sl =
 
 let strings_of_reasons packages cudfnv2opam unav_reasons rs =
   let open Algo.Diagnostic in
-  let is_base cpkg = cpkg.Cudf.keep = `Keep_version in
   let rec aux = function
     | [] -> []
     | Conflict (i,j,jc)::rs ->
-      if is_artefact i && is_artefact j then
-        let str = "The request is conflicting with the switch" in
-        str :: aux rs
-      else if is_artefact i || is_artefact j then
-        let a = if is_artefact i then j else i in
-        if is_artefact a then aux rs else
-        if is_base a then
-          let str =
-            Printf.sprintf "Package %s is part of the base for this compiler \
-                            and can't be changed"
-              (OpamPackage.name_to_string (cudf2opam a)) in
-          str :: aux rs
-        else
-        let str =
-          Printf.sprintf "Conflicting query for package %s"
-            (OpamPackage.to_string (cudf2opam a)) in
-        str :: aux rs
-      else
+      assert (not (is_artefact j));
+      if is_artefact j then aux rs else
       if i.Cudf.package = j.Cudf.package then
-        if is_base i || is_base j then
-          let str =
-            Printf.sprintf "Package %s is part of the base for this compiler \
-                            and can't be changed"
-              (OpamPackage.name_to_string (cudf2opam i)) in
-          str :: aux rs
-        else
         let str = Printf.sprintf "No available version of %s satisfies the \
                                   constraints"
             (OpamPackage.name_to_string (cudf2opam i)) in
         str :: aux rs
       else
-      let nva = cudf2opam i in
-      let versions, rs =
-        List.fold_left (fun (versions, rs) -> function
-            | Conflict (i1, _, jc1) when
-                (cudf2opam i1).name = nva.name && jc1 = jc ->
-              OpamPackage.Version.Set.add (cudf2opam i1).version versions, rs
-            | r -> versions, r::rs)
-          (OpamPackage.Version.Set.singleton nva.version, []) rs
+      let left_str, right_str, rs =
+        if is_opam_invariant i then
+          "The switch invariant",
+          ". You might want to retry with `--unlock-invariant'",
+          rs
+        else if is_artefact i then "The request", "", rs
+        else
+        let nva = cudf2opam i in
+        let versions, rs =
+          List.fold_left (fun (versions, rs) -> function
+              | Conflict (i1, _, jc1)
+                when i1.Cudf.package = i.Cudf.package && jc1 = jc ->
+                OpamPackage.Version.Set.add (cudf2opam i1).version versions, rs
+              | r -> versions, r::rs)
+            (OpamPackage.Version.Set.singleton nva.version, []) rs
+        in
+        if OpamPackage.Version.Set.is_singleton versions then
+          OpamPackage.to_string nva, "", List.rev rs
+        else
+        let formula =
+          OpamFormula.formula_of_version_set
+            (OpamPackage.versions_of_name packages nva.name) versions
+        in
+        OpamFormula.to_string (Atom (nva.name, formula)), "", List.rev rs
       in
-      let rs = List.rev rs in
-      let formula =
-        OpamFormula.formula_of_version_set
-          (OpamPackage.versions_of_name packages nva.name) versions
-      in
-      let str = Printf.sprintf "%s is in conflict with %s"
-          (OpamFormula.to_string (Atom (nva.name, formula)))
+      (* let conflict_formula =
+       *   OpamStd.List.concat_map ", " (function
+       *       | name, None -> Common.CudfAdd.decode name
+       *       | name, Some (relop, v) ->
+       *         let nv = cudfnv2opam (name,v) in
+       *         Printf.sprintf "%s %s %s"
+       *         nv.name, Some (relop, nv.version) *)
+
+      let str =
+        Printf.sprintf "%s is in conflict with %s%s"
+          left_str
           (OpamFormula.to_string
              (OpamFormula.of_atom_formula (Atom (vpkg2atom cudfnv2opam jc))))
+          right_str
       in
       str :: aux rs
     | Missing (p,missing) :: rs when is_artefact p ->

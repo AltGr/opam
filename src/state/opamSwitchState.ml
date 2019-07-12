@@ -561,17 +561,19 @@ let conflicts_with st subset =
     (fun nv ->
        not (OpamPackage.has_name subset nv.name) &&
        (OpamFormula.verifies forward_conflicts nv ||
-        let opam = OpamPackage.Map.find nv st.opams in
-        List.exists (fun cl -> OpamPackage.Name.Set.mem cl conflict_classes)
-          (OpamFile.OPAM.conflict_class opam)
-        ||
-        let backwards_conflicts =
-          OpamFilter.filter_formula ~default:false
-            (OpamPackageVar.resolve_switch ~package:nv st)
-            (OpamFile.OPAM.conflicts opam)
-        in
-        OpamPackage.Set.exists
-          (OpamFormula.verifies backwards_conflicts) subset))
+        try
+          let opam = OpamPackage.Map.find nv st.opams in
+          List.exists (fun cl -> OpamPackage.Name.Set.mem cl conflict_classes)
+            (OpamFile.OPAM.conflict_class opam)
+          ||
+          let backwards_conflicts =
+            OpamFilter.filter_formula ~default:false
+              (OpamPackageVar.resolve_switch ~package:nv st)
+              (OpamFile.OPAM.conflicts opam)
+          in
+          OpamPackage.Set.exists
+            (OpamFormula.verifies backwards_conflicts) subset
+       with Not_found -> false))
 
 let remove_conflicts st subset pkgs =
   pkgs -- conflicts_with st subset pkgs
@@ -685,7 +687,7 @@ let universe st
     else st.compiler_packages
   in
   let u_available =
-    remove_conflicts st base (Lazy.force st.available_packages)
+    (* remove_conflicts st base *) (Lazy.force st.available_packages)
   in
   let u_reinstall =
     (* Ignore reinstalls outside of the dependency cone of
