@@ -119,7 +119,11 @@ let infer_switch_invariant_raw
   in
   let counts =
     OpamPackage.Set.fold (fun nv counts ->
-        (nv, OpamPackage.Set.cardinal (OpamPackage.Map.find nv dmap)) :: counts
+        let count =
+          try OpamPackage.Set.cardinal (OpamPackage.Map.find nv dmap)
+          with Not_found -> 0
+        in
+        (nv, count) :: counts
       )
       compiler []
   in
