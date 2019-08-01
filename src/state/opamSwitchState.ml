@@ -840,7 +840,10 @@ let unavailable_reason st ?(default="") (name, vformula) =
       "conflict with the base packages of this switch"
     else if OpamPackage.has_name st.compiler_packages name &&
             not OpamStateConfig.(!r.unlock_base) then
-      "base of this switch (use `--unlock-base' to force)"
+      Printf.sprintf
+        "incompatible with the switch invariant %s (use `--update-invariant' \
+         to force)"
+        (OpamConsole.colorise `bold (OpamFormula.to_string st.switch_invariant))
     else
       default
 

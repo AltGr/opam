@@ -74,7 +74,7 @@ type 'a formula =
   | And of 'a formula * 'a formula
   | Or of 'a formula * 'a formula
 
-val compare: ('a -> 'a -> int) -> 'a formula -> 'a formula -> int
+val compare_formula: ('a -> 'a -> int) -> 'a formula -> 'a formula -> int
 
 (** Eval a formula *)
 val eval: ('a -> bool) -> 'a formula -> bool
@@ -155,6 +155,13 @@ val verifies: t -> OpamPackage.t -> bool
 (** Returns the subset of packages possibly matching the formula (i.e. including
     all disjunction cases) *)
 val packages: OpamPackage.Set.t -> t -> OpamPackage.Set.t
+
+val compare_nc:
+  (OpamPackage.Name.t * version_formula) ->
+  (OpamPackage.Name.t * version_formula) ->
+  int
+
+val compare: t -> t -> int
 
 (** Convert a formula to CNF *)
 val cnf_of_formula: 'a formula -> 'a formula

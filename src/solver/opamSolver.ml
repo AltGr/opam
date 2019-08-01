@@ -301,19 +301,19 @@ let load_cudf_universe
     | Some vm -> vm
     | None -> cudf_versions_map opam_universe opam_packages in
   log ~level:3 "Load cudf universe: opam2cudf";
-  let opam_packages =
-    if OpamPackage.Set.subset opam_universe.u_base opam_universe.u_available
-    then
-      (* Filter out extra compiler versions, they add too much cost to the
-         solver and are not needed *)
-      opam_packages --
-      (OpamPackage.packages_of_names opam_packages
-         OpamPackage.Name.Set.Op.(
-           OpamPackage.names_of_packages opam_universe.u_base
-           -- OpamPackage.names_of_packages opam_universe.u_pinned)
-       -- opam_universe.u_base)
-    else opam_packages
-  in
+  (* let opam_packages =
+   *   if OpamPackage.Set.subset opam_universe.u_base opam_universe.u_available
+   *   then
+   *     (\* Filter out extra compiler versions, they add too much cost to the
+   *        solver and are not needed *\)
+   *     opam_packages --
+   *     (OpamPackage.packages_of_names opam_packages
+   *        OpamPackage.Name.Set.Op.(
+   *          OpamPackage.names_of_packages opam_universe.u_base
+   *          -- OpamPackage.names_of_packages opam_universe.u_pinned)
+   *      -- opam_universe.u_base)
+   *   else opam_packages
+   * in *)
   let univ_gen =
     opam2cudf opam_universe version_map opam_packages
   in
@@ -437,10 +437,6 @@ let resolve universe ~orphans request =
         opam_invariant_package version_map universe.u_invariant
       in
       Cudf.add_package u invariant_pkg;
-      (* let req =
-       *   { req with wish_install =
-       *                (invariant_pkg.Cudf.package, None) :: req.wish_install }
-       * in *)
       let resp = OpamCudf.resolve ~extern:true ~version_map u req in
       Cudf.remove_package u
         (invariant_pkg.Cudf.package, invariant_pkg.Cudf.version);
