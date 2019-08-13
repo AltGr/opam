@@ -249,8 +249,13 @@ let apply_selector ~base st = function
   | Coinstallable_with (tog, packages) ->
     let universe = get_universe st tog in
     let set = OpamPackage.Set.of_list packages in
-    let universe = { universe with u_base = set; u_installed = set } in
-    OpamSolver.installable_subset universe base
+    OpamSolver.coinstallable_subset universe set base
+    |> fun r ->
+    OpamConsole.msg "COINST %s %s => %s"
+      (OpamStd.List.concat_map "," OpamPackage.to_string packages)
+      (OpamPackage.Set.to_string base)
+      (OpamStd.List.concat_map "," OpamPackage.to_string (OpamPackage.Set.elements r));
+    r
   | Solution (tog, atoms) ->
     let universe =
       let requested =

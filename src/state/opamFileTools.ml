@@ -1039,3 +1039,9 @@ let sort_opam opam =
   |> with_pin_depends pin_depends
   |> with_extra_files_opt extra_files
   |> with_extra_sources extra_sources
+
+let dep_formula_to_string f =
+  let pp =
+    OpamFormat.V.(package_formula `Conj (constraints version))
+  in
+  OpamPrinter.value (OpamPp.print pp f)

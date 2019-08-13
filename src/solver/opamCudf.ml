@@ -28,6 +28,9 @@ let opam_invariant_package_name =
 
 let opam_invariant_package_version = 0
 
+let opam_invariant_package =
+  opam_invariant_package_name, opam_invariant_package_version
+
 let is_opam_invariant p =
   p.Cudf.package = opam_invariant_package_name
 
@@ -1091,8 +1094,7 @@ let resolve ~extern ~version_map universe request =
     else check_request ~version_map universe request
   in
   let cleanup univ =
-    Cudf.remove_package univ
-      (opam_invariant_package_name, opam_invariant_package_version)
+    Cudf.remove_package univ opam_invariant_package
   in
   let () = match resp with
     | Success univ -> cleanup univ

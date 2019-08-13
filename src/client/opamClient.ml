@@ -448,7 +448,8 @@ let fixup t =
   log "FIXUP";
   let t, full_orphans, orphan_versions = orphans ~transitive:true t in
   let all_orphans = full_orphans ++ orphan_versions in
-  let resolve pkgs =
+  let resolve t pkgs =
+    t,
     pkgs,
     OpamSolution.resolve t Upgrade
       ~orphans:all_orphans
@@ -459,45 +460,64 @@ let fixup t =
          ())
   in
   let is_success = function
-    | _, Success _ -> true
-    | _, Conflicts cs ->
+    | _, _, Success _ -> true
+    | _, _, Conflicts cs ->
       log "conflict: %a"
         (slog (OpamCudf.string_of_conflict t.packages @@
                OpamSwitchState.unavailable_reason t))
         cs;
       false
   in
-  let requested, solution =
+  let t, has_dropped_invariant =
+    if
+      OpamFormula.satisfies_depends (Lazy.force t.available_packages)
+        t.switch_invariant
+    then
+      t, false
+    else if OpamConsole.confirm
+        "The current switch invariant is not satisfiable. Drop it? (You can \
+         fix it using `opam switch set-invariant')"
+    then
+      OpamSwitchCommand.set_invariant_raw t OpamFormula.Empty, true
+    else
+      OpamConsole.error_and_exit `No_solution
+        "Unsatisfiable switch invariant."
+  in
+  let t, requested, solution =
     let s =
       log "fixup-1/ keep installed packages with orphaned versions and roots";
-      resolve (t.installed_roots %% t.installed
-               -- full_orphans ++ orphan_versions)
+      resolve t (t.installed_roots %% t.installed
+                 -- full_orphans ++ orphan_versions)
     in
     if is_success s then s else
     let s =
       log "fixup-2/ keep just roots";
-      resolve (t.installed_roots %% t.installed -- full_orphans)
+      resolve t (t.installed_roots %% t.installed -- full_orphans)
     in
     if is_success s then s else
     let s =
       log "fixup-3/ keep packages with orphaned versions";
-      resolve orphan_versions
+      resolve t orphan_versions
     in
     if is_success s then s else
     let s =
       log "fixup-4/ last resort: no constraints. This should never fail";
-      resolve OpamPackage.Set.empty
+      resolve t OpamPackage.Set.empty
+    in
+    if is_success s then s else
+    let s =
+      log "fixup-5/ last resort: drop even the switch invariant";
+      let t = OpamSwitchCommand.set_invariant_raw t OpamFormula.Empty in
+      resolve t OpamPackage.Set.empty
     in
     s
-    (* Could still fail with uninstallable base packages actually, but we
-       can only fix so far *)
   in
   let t, result = match solution with
-    | Conflicts cs -> (* ouch... *)
+    | Conflicts cs ->
       OpamConsole.error
-        "It appears that the base packages for this switch are no longer \
-         available. Either fix their prerequisites or change them through \
-         'opam list --base' and 'opam switch set-base'.";
+        "I give up, it seems nothing can be installed; please check the \
+         repositories, and possibly your pinnings. You can create a new switch \
+         with `opam switch create'.";
       OpamConsole.errmsg "%s"
         (OpamCudf.string_of_conflict t.packages
            (OpamSwitchState.unavailable_reason t) cs);
@@ -511,6 +531,16 @@ let fixup t =
       t, Success res
   in
   OpamSolution.check_solution t result;
+  let t =
+    if has_dropped_invariant then
+      let inv = OpamSwitchState.infer_switch_invariant t in
+      OpamConsole.note
+        "The switch invariant has been updated to %s. Use `opam switch \
+         set-invariant' to change it if this is not correct."
+        (OpamFileTools.dep_formula_to_string inv);
+      OpamSwitchCommand.set_invariant_raw t OpamFormula.Empty
+    else t
+  in
   t
 
 let update

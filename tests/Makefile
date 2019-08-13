@@ -342,9 +342,9 @@ $(reftests-out): reftests.ml $(reftests)
 reftests: $(reftests-out)
 	diff reftests reftests.out
 
-reftests-meld: reftests
+reftests-meld: $(reftests-out)
 	meld reftests reftests.out
 
-reftests-promote: reftests
+reftests-promote: $(reftests-out)
 	mv reftests.out/*.tests reftests/
 	rmdir reftests.out

@@ -308,9 +308,34 @@ let parallel_apply t ~requested ?add_roots ~assume_built action_graph =
      as an operation terminates *)
   let t_ref = ref t in
 
+  (* only needed when --update-invariant is set. Use the configured invariant,
+     not the current one which will be empty. *)
+  let invariant_ref = ref t.switch_config.OpamFile.Switch_config.invariant in
+
   let add_to_install nv =
     let root = OpamPackage.Name.Set.mem nv.name root_installs in
-    t_ref := OpamSwitchAction.add_to_installed !t_ref ~root nv
+    t_ref := OpamSwitchAction.add_to_installed !t_ref ~root nv;
+    if OpamStateConfig.(!r.unlock_base) then
+      let invariant =
+        OpamFormula.map (fun (n, cstr as at) ->
+            if n <> nv.name || OpamFormula.check_version_formula cstr nv.version
+            then Atom at else
+            let cstr =
+              OpamFormula.map (fun (relop, _ as vat) ->
+                  if OpamFormula.check_version_formula (Atom vat) nv.version
+                  then Atom vat
+                  else match relop with
+                    | `Neq | `Gt | `Lt -> OpamFormula.Empty
+                    | `Eq | `Geq | `Leq -> Atom (relop, nv.version))
+                cstr
+            in
+            Atom (n, cstr))
+          !invariant_ref
+      in
+      if invariant <> !invariant_ref then
+        (invariant_ref := invariant;
+         OpamSwitchAction.install_switch_config t.switch_global.root t.switch
+           {t.switch_config with invariant})
   in
 
   let remove_from_install ?keep_as_root nv =

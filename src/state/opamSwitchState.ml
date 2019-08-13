@@ -141,6 +141,12 @@ let infer_switch_invariant_raw
       OpamFormula.Atom (nv.name, Atom (`Eq, nv.version))
   | [] -> OpamFormula.Empty
 
+let infer_switch_invariant st =
+  infer_switch_invariant_raw
+    st.switch_global st.switch st.switch_config st.opams
+    st.packages st.compiler_packages st.installed_roots st.available_packages
+
+
 let load lock_kind gt rt switch =
   let chrono = OpamConsole.timer () in
   log "LOAD-SWITCH-STATE @ %a" (slog OpamSwitch.to_string) switch;
@@ -315,10 +321,11 @@ let load lock_kind gt rt switch =
           gt switch switch_config opams
           packages compiler_packages installed_roots available_packages
       in
-      log "Inferred invariant: from base packages %s, (roots %s) => %s"
-        (OpamPackage.Set.to_string compiler_packages)
-        (OpamPackage.Set.to_string (compiler_packages %% installed_roots))
-        (OpamFormula.to_string invariant);
+      log "Inferred invariant: from base packages %a, (roots %a) => %a"
+        (slog OpamPackage.Set.to_string) compiler_packages
+        (slog @@ fun () ->
+         OpamPackage.Set.to_string (compiler_packages %% installed_roots)) ()
+        (slog OpamFileTools.dep_formula_to_string) invariant;
       let min_opam_version = OpamVersion.of_string "2.1" in
       let opam_version =
         if OpamVersion.compare switch_config.opam_version min_opam_version < 0
@@ -682,12 +689,18 @@ let universe st
   in
   let u_depopts = get_deps OpamFile.OPAM.depopts st.opams in
   let u_conflicts = get_conflicts st st.packages st.opams in
-  let base =
-    if OpamStateConfig.(!r.unlock_base) then OpamPackage.Set.empty
-    else st.compiler_packages
+  let base = st.compiler_packages in
+  let u_invariant =
+    if OpamStateConfig.(!r.unlock_base) then OpamFormula.Empty
+    else st.switch_invariant
   in
   let u_available =
-    (* remove_conflicts st base *) (Lazy.force st.available_packages)
+    (* TODO: removing what conflicts with the base is no longer correct now that
+       we use invariants instead. Removing what conflicts with the invariant
+       would be much more involved, but some solvers might struggle without any
+       cleanup at this point *)
+    (* remove_conflicts st base *)
+    (Lazy.force st.available_packages)
   in
   let u_reinstall =
     (* Ignore reinstalls outside of the dependency cone of
@@ -719,7 +732,7 @@ let universe st
   u_installed_roots = st.installed_roots;
   u_pinned    = OpamPinned.packages st;
   u_base      = base;
-  u_invariant = st.switch_invariant;
+  u_invariant;
   u_reinstall;
   u_attrs     = ["opam-query", requested_allpkgs];
 }
@@ -843,7 +856,8 @@ let unavailable_reason st ?(default="") (name, vformula) =
       Printf.sprintf
         "incompatible with the switch invariant %s (use `--update-invariant' \
          to force)"
-        (OpamConsole.colorise `bold (OpamFormula.to_string st.switch_invariant))
+        (OpamConsole.colorise `bold
+           (OpamFileTools.dep_formula_to_string st.switch_invariant))
     else
       default
 

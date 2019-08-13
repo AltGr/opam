@@ -1,19 +1,34 @@
 #!/usr/bin/env ocaml
 
 let testdir =
-  if Array.length Sys.argv < 2 then
+  let d =
     Filename.concat
       (Filename.dirname Sys.argv.(0))
       "reftests"
-  else Sys.argv.(1)
+  in
+  if Filename.is_relative d then
+    Filename.concat (Sys.getcwd ()) d
+  else d
 
 let test_files =
-  Array.fold_right (fun f acc ->
-      if Filename.extension f = ".test"
-      then Filename.concat testdir f :: acc
-      else acc)
-    (Sys.readdir testdir)
-    []
+  match Array.to_list Sys.argv with
+  | [] | [_] ->
+    Array.fold_right (fun f acc ->
+        if Filename.extension f = ".test"
+        then Filename.concat testdir f :: acc
+        else acc)
+      (Sys.readdir testdir)
+      []
+  | _ :: args ->
+    List.map (fun s ->
+        let s =
+          if Filename.check_suffix s ".test" then s
+          else s ^ ".test"
+        in
+        if Filename.is_implicit s then
+          Filename.concat testdir s
+        else s)
+      args
 
 type test = {
   name: string;
@@ -36,6 +51,8 @@ let rem_prefix pfx s =
    ### opam command
    output line 1
    output...
+   ### <filename>
+   contents...
    ### opam command
    output...
 v}*)
@@ -88,6 +105,10 @@ let rec with_temp_dir f =
   (command "mkdir -p %s" s;
    finally f s @@ fun () -> command "rm -rf %s" s)
 
+let with_chdir d f =
+  let oldcwd = Sys.getcwd () in
+  finally (fun () -> Sys.chdir d; f ()) () (fun () -> Sys.chdir oldcwd)
+
 let with_repo hash f =
   with_temp_dir (fun repo_dir ->
       let tgz = Filename.concat repo_dir "archive.tar.gz" in
@@ -116,7 +137,8 @@ let run_cmd ?(verbose=true) opamroot logfile fmt =
     fmt
 
 let run_test t =
-  with_temp_dir @@ fun opamroot ->
+  with_temp_dir @@ fun tdir ->
+  let opamroot = Filename.concat tdir ".opam" in
   with_repo t.repo_hash @@
   command "opam init --root=%s \
            --no-setup --bypass-checks --no-opamrc --bare \
@@ -128,12 +150,23 @@ let run_test t =
   let oc = open_out logfile in
   output_string oc (t.repo_hash ^ "\n");
   close_out oc;
-  List.iter (fun (cmd, _) ->
-      run_cmd ~verbose:false opamroot logfile "echo '### '%s" (Filename.quote cmd);
-      run_cmd opamroot logfile "%s" cmd)
+  with_chdir tdir @@ fun () ->
+  List.iter (fun (cmd, out) ->
+      run_cmd ~verbose:false opamroot logfile "echo '### '%s"
+        (Filename.quote cmd);
+      if cmd.[0] = '<' && cmd.[String.length cmd - 1] = '>' then
+        let f = (String.sub cmd 1 (String.length cmd - 2)) in
+        List.iter (fun line ->
+            command ~verbose:false "echo '%s' >>%s" line (Filename.quote f);
+            run_cmd ~verbose:false opamroot logfile "echo %s"
+              (Filename.quote line))
+          out
+      else
+        run_cmd opamroot logfile "%s" cmd)
     t.commands
 
 let () =
+  close_in stdin;
   List.iter (fun f ->
       Printf.eprintf "Testing %s...\n%!" f;
       let t = load_test f in
