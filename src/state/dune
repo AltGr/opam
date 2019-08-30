@@ -14,3 +14,31 @@
   (targets opamScript.ml)
   (deps    ../../shell/crunch.ml (glob_files shellscripts/*.*sh))
   (action  (with-stdout-to %{targets} (run ocaml %{deps}))))
+
+
+;; These rules are here to document and for easy (re-)generation of the module,
+;; but relying on the checked-in file should be OK (we don't want to rely on
+;; either `jq` or a network download). Hence the `(mode fallback)`.
+(rule
+  (targets opamSpdxList.ml)
+  (mode fallback)
+  (action (with-stdout-to %{targets}
+    (progn
+      (echo "let licenses = OpamStd.String.Set.of_list @@ List.map String.lowercase_ascii @@ ")
+      (cat spdx-license-list)
+      (echo "let exceptions = OpamStd.String.Set.of_list @@ List.map String.lowercase_ascii @@ ")
+      (cat spdx-license-exn-list)))))
+(rule
+  (targets spdx-license-list)
+  (action  (with-stdout-to %{targets}
+    (system
+      "curl https://raw.githubusercontent.com/spdx/license-list-data/master/json/licenses.json |
+       jq -c '.licenses | map(.licenseId)'|
+       sed 's/,/;/g'"))))
+(rule
+  (targets spdx-license-exn-list)
+  (action  (with-stdout-to %{targets}
+    (system
+      "curl https://raw.githubusercontent.com/spdx/license-list-data/master/json/exceptions.json |
+       jq -c '.exceptions | map(.licenseExceptionId)' |
+       sed 's/,/;/g'"))))
