@@ -689,7 +689,7 @@ let make_chains packages cudfnv2opam depends =
   let map_addlist k v map =
     try Map.add k (v @ Map.find k map) map
     with Not_found -> Map.add k v map in
-  let roots,cflct,deps,vpkgs =
+  let roots,_cflct,deps,vpkgs =
     List.fold_left (fun (roots,cflct,deps,vpkgs) -> function
         | Dependency (i, vpkgl, jl) ->
           Set.add i roots,
