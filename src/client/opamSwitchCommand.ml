@@ -710,12 +710,24 @@ let get_compiler_packages ?repos rt =
     | Some r -> r
   in
   let package_index = OpamRepositoryState.build_index rt repos in
+  let packages = OpamPackage.keys package_index in
+  let available opam =
+    OpamFilter.eval_to_bool ~default:false
+      (OpamPackageVar.resolve_global rt.repos_global)
+      (OpamFile.OPAM.available opam)
+  in
   OpamPackage.Map.filter
     (fun _ opam ->
        OpamFile.OPAM.has_flag Pkgflag_Compiler opam &&
-       OpamFilter.eval_to_bool ~default:false
-         (OpamPackageVar.resolve_global rt.repos_global)
-         (OpamFile.OPAM.available opam))
+       available opam &&
+       let deps = OpamFilter.atomise_extended (OpamFile.OPAM.depends opam) in
+       OpamFormula.eval (fun (name, _) ->
+           (* approximate availability of direct dependencies *)
+           OpamPackage.Set.exists
+             (fun p -> available (OpamPackage.Map.find p package_index))
+             (OpamPackage.packages_of_name packages name))
+         deps
+    )
     package_index
   |> OpamPackage.keys
 
