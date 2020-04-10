@@ -123,8 +123,8 @@ _opam()
                   _opam_add_f opam switch list --safe -s;;
               3)
                   case "$subcmd" in
-                      create|install)
-                          _opam_add_f opam switch list-available --safe -s -a;;
+                      cr|create|install)
+                          _opam_add_f opam switch list-available --safe -s;;
                       set|remove|reinstall)
                           _opam_add_f opam switch list --safe -s;;
                       import|export)
