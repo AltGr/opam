@@ -193,19 +193,6 @@ let set_invariant_raw st invariant =
       switch_config;
   st
 
-let simili_compiler t nv =
-  (* Packages with the Compiler flag, or with a direct dependency with that
-     flag *)
-  let is_comp nv =
-    try OpamFile.OPAM.has_flag Pkgflag_Compiler (OpamSwitchState.opam t nv)
-    with Not_found -> false
-  in
-  is_comp nv ||
-  OpamPackage.Set.exists is_comp
-    (OpamFormula.packages t.packages
-       (OpamPackageVar.all_depends ~filter_default:true t
-          (OpamSwitchState.opam t nv)))
-
 let install_compiler ?(additional_installs=[]) ?(deps_only=false) t =
   let invariant = t.switch_invariant in
   if invariant = OpamFormula.Empty && additional_installs = [] then begin
@@ -251,7 +238,22 @@ let install_compiler ?(additional_installs=[]) ?(deps_only=false) t =
   in
   let to_install_pkgs = OpamSolver.new_packages solution in
   let base_comp = OpamPackage.packages_of_names to_install_pkgs comp_roots in
-  let has_comp_flag = OpamPackage.Set.filter (simili_compiler t) base_comp in
+  let has_comp_flag =
+    let is_comp nv =
+      try OpamFile.OPAM.has_flag Pkgflag_Compiler (OpamSwitchState.opam t nv)
+      with Not_found -> false
+    in
+    (* Packages with the Compiler flag, or with a direct dependency with that
+       flag (just for the warning) *)
+    OpamPackage.Set.filter
+      (fun nv ->
+         is_comp nv ||
+         OpamPackage.Set.exists is_comp
+           (OpamFormula.packages t.packages
+              (OpamPackageVar.all_depends ~filter_default:true t
+                 (OpamSwitchState.opam t nv))))
+      base_comp
+  in
   if OpamPackage.Set.is_empty has_comp_flag &&
      not (OpamConsole.confirm ~default:false
             "Packages %s don't have the 'compiler' flag set (nor any of their \
@@ -716,7 +718,7 @@ let get_compiler_packages ?repos rt =
   in
   OpamPackage.Map.filter
     (fun _ opam ->
-       simili_compiler t nv &&
+       OpamFile.OPAM.has_flag Pkgflag_Compiler opam &&
        available opam &&
        let deps = OpamFilter.atomise_extended (OpamFile.OPAM.depends opam) in
        OpamFormula.eval (fun (name, _) ->
