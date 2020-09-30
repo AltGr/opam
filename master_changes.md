@@ -72,6 +72,7 @@ New option/command/subcommand are prefixed with ◈.
   * Update opam file to 2.0 [#4371 @AltGr]
   * Makefile: Add rule `custom-libinstall` for `opam-custom-install` use [#4401 @AltGr]
   * opam-client lib: fix dependency constraints for cmdliner, extlib [#4410 @AltGr]
+  * Use dune to run reftests [#4376 @emillon]
 
 ## Infrastructure
   *
