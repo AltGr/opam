@@ -40,6 +40,7 @@ New option/command/subcommand are prefixed with ◈.
 
 ## Var
   * Add `opamfile-loc` as a package variable, containing the location of installed package opam file [#4402 @rjbou]
+  * Be more tolerant of `readonly` cases that have not been specified on the command-line [#4354 @AltGr]
 
 ## Option
 
@@ -60,7 +61,8 @@ New option/command/subcommand are prefixed with ◈.
   *
 
 ## Test
-  *
+  * Make the reference tests dune-friendly [#4376 @emillon]
+  * Rewrite the very old tests and unify them with the newer ones [@AltGr]
 
 ## Repository management
   *
