@@ -36,15 +36,15 @@ depends: [
   "fpath" ]
 ### opam install . --deps-only --show
 [ERROR] Package conflict!
-  * No agreement on the version of ocaml:
-    - (invariant) → ocaml-base-compiler = 4.08.0 → ocaml = 4.08.0
-    - camelus → tls → camlp4 → ocaml < 4.02
-    You can temporarily relax the switch invariant with `--update-invariant'
   * No agreement on the version of ocaml-base-compiler:
-    - (invariant) → ocaml-base-compiler = 4.08.0
-    - camelus → tls → ppx_sexp_conv < v0.11.0 → ocaml = 4.02.3 → ocaml-base-compiler = 4.02.3
+    - (invariant) -> ocaml-base-compiler = 4.08.0
+    - camelus -> tls -> nocrypto < 0.2.0 | ppx_sexp_conv < v0.11.0 | sexplib < 113.01.00 -> ocaml < 4.03.0 -> ocaml-base-compiler = 3.08.4
+    You can temporarily relax the switch invariant with `--update-invariant'
+  * Incompatible packages:
+    - (invariant) -> ocaml-base-compiler = 4.08.0 -> ocaml = 4.08.0
+    - camelus -> tls -> nocrypto >= 0.5.4
   * Missing dependency:
-    - camelus → tls → ppx_sexp_conv < v0.11.0 → ocaml = 4.02.3 → ocaml-variants >= 4.02.3 → ocaml-beta
+    - camelus -> tls -> nocrypto < 0.2.0 | ppx_sexp_conv < v0.11.0 | sexplib < 113.01.00 -> ocaml < 4.03.0 -> ocaml-variants -> ocaml-beta
     unmet availability conditions: 'enable-ocaml-beta-repository'
 
 No solution found, exiting
