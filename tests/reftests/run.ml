@@ -422,7 +422,7 @@ let run_test ?(vars=[]) ~opam t =
       "robocopy"
       ["/e"; "/copy:dat"; "/dcopy:dat"; "/sl"; opamroot0; opamroot]
   else
-    ignore @@ command "cp" ["-a"; opamroot0; opamroot];
+    ignore @@ command "cp" ["-dr"; opamroot0; opamroot];
   Sys.chdir dir;
   let dir = Sys.getcwd () in (* because it may need to be normalised on OSX *)
   ignore @@ command ~silent:true opam
