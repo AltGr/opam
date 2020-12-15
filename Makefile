@@ -169,31 +169,35 @@ uninstall: opam.install
 	$(OPAMINSTALLER) -u $(OPAMINSTALLER_FLAGS) $<
 	$(OPAMINSTALLER) -u $(OPAMINSTALLER_FLAGS) opam-installer.install
 
-checker:
-	$(DUNE) build --profile=$(DUNE_PROFILE) $(DUNE_ARGS) src/tools/opam_check.exe
-
-.PHONY: tests tests-local tests-git
+.PHONY: tests
 tests: $(DUNE_DEP)
-	$(DUNE) build --profile=$(DUNE_PROFILE) $(DUNE_ARGS) opam.install src/tools/opam_check.exe tests/patcher.exe
-	$(DUNE) build --profile=$(DUNE_PROFILE) $(DUNE_ARGS) doc/man/opam-topics.inc doc/man/opam-admin-topics.inc
-	OPAMCLI=2.0 $(DUNE) runtest --force --no-buffer --profile=$(DUNE_PROFILE) $(DUNE_ARGS) src/ tests/
+	$(DUNE) runtest --profile=$(DUNE_PROFILE) $(DUNE_ARGS) src/ tests/ --no-buffer
 
 .PHONY: crowbar
 # only run the quickcheck-style tests, not very covering
 crowbar: $(DUNE_DEP)
-	dune exec src/crowbar/test.exe
+	$(DUNE) exec src/crowbar/test.exe
 
 .PHONY: crowbar-afl
 # runs the real AFL deal, but needs to be done in a +afl switch
 crowbar-afl: $(DUNE_DEP)
-	dune build src/crowbar/test.exe
+	$(DUNE) build src/crowbar/test.exe
 	mkdir -p /tmp/opam-crowbar-input -p /tmp/opam-crowbar-output
 	echo foo > /tmp/opam-crowbar-input/foo
 	afl-fuzz -i /tmp/opam-crowbar-input -o /tmp/opam-crowbar-output dune exec src/crowbar/test.exe @@
 
 # tests-local, tests-git
-tests-%:
-	$(MAKE) -C tests $*
+tests-%: $(DUNE_DEP)
+	$(DUNE) build $(DUNE_ARGS) --profile=$(DUNE_PROFILE) @reftest-legacy-$* --force
+
+reftest-gen: $(DUNE_DEP)
+	$(DUNE) build $(DUNE_ARGS) --profile=$(DUNE_PROFILE) @reftest-gen --auto-promote --force
+
+reftests: $(DUNE_DEP)
+	$(DUNE) build $(DUNE_ARGS) --profile=$(DUNE_PROFILE) @reftest
+
+reftests-meld:
+	meld `for t in tests/reftests/*.test; do echo --diff $$t _build/default/$${t%.test}.out; done`
 
 .PHONY: doc
 doc: all
@@ -236,9 +240,3 @@ cold-%:
 .PHONY: run-appveyor-test
 run-appveyor-test:
 	env PATH="`pwd`/bootstrap/ocaml/bin:$$PATH" ./appveyor_test.sh
-
-.PHONY: reftests%
-reftests: opam
-	make -C tests $@
-reftests-%: opam
-	make -C tests $@

@@ -10,6 +10,8 @@ COLD=${COLD:-0}
 OPAM_TEST=${OPAM_TEST:-0}
 EXTERNAL_SOLVER=${EXTERNAL_SOLVER:-}
 
+export GIT_PAGER=
+
 set +x
 echo "TRAVIS_COMMIT_RANGE=$TRAVIS_COMMIT_RANGE"
 echo "TRAVIS_COMMIT=$TRAVIS_COMMIT"
@@ -362,8 +364,10 @@ export OCAMLRUNPARAM=b
     opam switch remove $OPAMBSSWITCH --yes
   elif [ "$TRAVIS_BUILD_STAGE_NAME" != "Upgrade" ]; then
     # Note: these tests require a "system" compiler and will use the one in $OPAMBSROOT
-    OPAMEXTERNALSOLVER="$EXTERNAL_SOLVER" make tests ||
-      (tail -n 2000 _build/default/tests/fulltest-*.log; echo "-- TESTS FAILED --"; exit 1)
+    if [ -n "$EXTERNAL_SOLVER" ]; then
+      echo "OPAMEXTERNALSOLVER=$EXTERNAL_SOLVER" >>tests/reftests/testing-env
+    fi
+    make tests || (echo "-- TESTS FAILED --"; exit 1)
   fi
   (set +x ; echo -en "travis_fold:end:build\r") 2>/dev/null
 )
