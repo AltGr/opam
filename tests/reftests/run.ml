@@ -165,7 +165,7 @@ let run_test t ?vars ~opam =
   let opamroot0 = Filename.concat (Sys.getcwd ()) ("root-"^t.repo_hash) in
   with_temp_dir @@ fun dir ->
   let opamroot = Filename.concat dir "OPAM" in
-  command "cp -a %s %s" opamroot0 opamroot;
+  command "cp -dr %s %s" opamroot0 opamroot;
   Sys.chdir dir;
   let dir = Sys.getcwd () in (* because it may need to be normalised on OSX *)
   command
