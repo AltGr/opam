@@ -863,8 +863,12 @@ let extract_explanations packages cudfnv2opam unav_reasons reasons =
         try
           match re with
           | Conflict (l, r, _) ->
-            let ct_chains, csl = cst ct_chains l in
-            let ct_chains, csr = cst ct_chains r in
+            let ct_chains1, csl = cst ct_chains l in
+            let map_diff = Map.merge (fun _ a b -> match a, b with Some a, None -> Some a | _ -> None) in
+            let reml = map_diff ct_chains ct_chains1 in
+            let ct_chains2, csr = cst ct_chains1 r in
+            let remr = map_diff ct_chains1 ct_chains2 in
+            let ct_chains = ct_chains2 in
             let msg1 =
               if l.Cudf.package = r.Cudf.package then
                 Printf.sprintf "No agreement on the version of %s:"
@@ -874,6 +878,10 @@ let extract_explanations packages cudfnv2opam unav_reasons reasons =
             in
             let msg2 = List.sort_uniq compare [csl; csr] in
             let msg3 =
+              ("Chains discarded (L): " ^ Map.to_string CS.to_string reml)
+              ::
+              ("Chains discarded (R): " ^ Map.to_string CS.to_string remr)
+              ::
               let msg =
                 "You can temporarily relax the switch invariant with \
                  `--update-invariant'"
