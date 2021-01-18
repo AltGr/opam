@@ -781,8 +781,10 @@ let extract_explanations packages cudfnv2opam unav_reasons reasons =
         else
         let f =
           let vpkgl =
-            List.filter
-              (fun (n, _) -> Set.exists (fun p -> p.package = n) pkgs)
+            List.filter (fun (n, cst) ->
+                Set.exists (fun p ->
+                    p.package = n && Cudf.version_matches p.version cst)
+                  pkgs)
               vpkgl
           in
           formula_of_vpkgl cudfnv2opam packages vpkgl
