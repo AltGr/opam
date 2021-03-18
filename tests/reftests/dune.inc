@@ -238,9 +238,10 @@
   (targets root-009e00fa)
   (action
    (progn
+    (ignore-stdout
     (run %{bin:opam} init --root=%{targets}
            --no-setup --bypass-checks --no-opamrc --bare
-           file://%{dep:opam-repo-009e00fa}))))
+           file://%{dep:opam-repo-009e00fa})))))
 
 (rule
  (targets opam-archive-632bc2e.tar.gz)
@@ -257,9 +258,10 @@
   (targets root-632bc2e)
   (action
    (progn
+    (ignore-stdout
     (run %{bin:opam} init --root=%{targets}
            --no-setup --bypass-checks --no-opamrc --bare
-           file://%{dep:opam-repo-632bc2e}))))
+           file://%{dep:opam-repo-632bc2e})))))
 
 (rule
  (targets opam-archive-c1d23f0e.tar.gz)
@@ -276,9 +278,10 @@
   (targets root-c1d23f0e)
   (action
    (progn
+    (ignore-stdout
     (run %{bin:opam} init --root=%{targets}
            --no-setup --bypass-checks --no-opamrc --bare
-           file://%{dep:opam-repo-c1d23f0e}))))
+           file://%{dep:opam-repo-c1d23f0e})))))
 
 (rule
  (targets opam-archive-f372039d.tar.gz)
@@ -295,6 +298,7 @@
   (targets root-f372039d)
   (action
    (progn
+    (ignore-stdout
     (run %{bin:opam} init --root=%{targets}
            --no-setup --bypass-checks --no-opamrc --bare
-           file://%{dep:opam-repo-f372039d}))))
+           file://%{dep:opam-repo-f372039d})))))
