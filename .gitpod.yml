@@ -1,0 +1,11 @@
+# The Docker image to run your workspace in. Defaults to gitpod/workspace-full
+image:
+  file: .gitpod.Dockerfile
+# Command to start on workspace startup (optional)
+tasks:
+  - init: opam switch create . ocaml-system ocaml-lsp-server --deps-only
+    command: eval $(opam env) && ./configure && make DUNE_ARGS=-w
+vscode:
+  extensions:
+    - ocamllabs.ocaml-platform@1.8.2:vUfI4PSVt3gKEG8syDLznQ==
+    
