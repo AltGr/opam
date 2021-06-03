@@ -38,7 +38,7 @@ depends: [
 [ERROR] Package conflict!
   * No agreement on the version of ocaml-base-compiler:
     - (invariant) -> ocaml-base-compiler = 4.08.0
-    - camelus -> tls -> nocrypto < 0.2.0 | ppx_sexp_conv < v0.11.0 | sexplib < 113.01.00 -> ocaml < 4.03.0 -> ocaml-base-compiler = 3.08.4
+    - camelus -> tls -> ppx_sexp_conv < v0.11.0 | sexplib < 113.01.00 -> ocaml < 4.03.0 -> ocaml-base-compiler = 4.02.3
     You can temporarily relax the switch invariant with `--update-invariant'
   * Incompatible packages:
     - (invariant) -> ocaml-base-compiler = 4.08.0 -> ocaml = 4.08.0
@@ -48,3 +48,4 @@ depends: [
     unmet availability conditions: 'enable-ocaml-beta-repository'
 
 No solution found, exiting
+# Return code 20 #
