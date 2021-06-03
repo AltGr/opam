@@ -1,5 +1,21 @@
 
 (alias
+ (name reftest-camelus)
+ (action
+  (diff camelus.test camelus.out)))
+
+(alias
+ (name reftest)
+ (deps (alias reftest-camelus)))
+
+(rule
+ (deps root-c7f8804c)
+ (action
+  (with-stdout-to
+   camelus.out
+   (run ./run.exe %{bin:opam} %{dep:camelus.test} %{read-lines:testing-env}))))
+
+(alias
  (name reftest-cli-versioning)
  (action
   (diff cli-versioning.test cli-versioning.out)))
@@ -14,6 +30,22 @@
   (with-stdout-to
    cli-versioning.out
    (run ./run.exe %{bin:opam} %{dep:cli-versioning.test} %{read-lines:testing-env}))))
+
+(alias
+ (name reftest-conflict-3819)
+ (action
+  (diff conflict-3819.test conflict-3819.out)))
+
+(alias
+ (name reftest)
+ (deps (alias reftest-conflict-3819)))
+
+(rule
+ (deps root-40265f4)
+ (action
+  (with-stdout-to
+   conflict-3819.out
+   (run ./run.exe %{bin:opam} %{dep:conflict-3819.test} %{read-lines:testing-env}))))
 
 (alias
  (name reftest-conflict-4373)
@@ -308,6 +340,26 @@
            file://%{dep:opam-repo-009e00fa})))))
 
 (rule
+ (targets opam-archive-40265f4.tar.gz)
+ (action (run wget --quiet -O %{targets} https://github.com/ocaml/opam-repository/archive/40265f4.tar.gz)))
+
+(rule
+  (targets opam-repo-40265f4)
+  (action
+   (progn
+    (run mkdir -p %{targets})
+    (run tar -C %{targets} -xzf %{dep:opam-archive-40265f4.tar.gz} --strip-components=1))))
+
+(rule
+  (targets root-40265f4)
+  (action
+   (progn
+    (ignore-stdout
+    (run %{bin:opam} init --root=%{targets}
+           --no-setup --bypass-checks --no-opamrc --bare
+           file://%{dep:opam-repo-40265f4})))))
+
+(rule
  (targets opam-archive-632bc2e.tar.gz)
  (action (run wget --quiet -O %{targets} https://github.com/ocaml/opam-repository/archive/632bc2e.tar.gz)))
 
@@ -335,7 +387,7 @@
   (targets opam-repo-ad4dd344)
   (action
    (progn
-    (run mkdir %{targets})
+    (run mkdir -p %{targets})
     (run tar -C %{targets} -xzf %{dep:opam-archive-ad4dd344.tar.gz} --strip-components=1))))
 
 (rule
@@ -366,6 +418,26 @@
     (run %{bin:opam} init --root=%{targets}
            --no-setup --bypass-checks --no-opamrc --bare
            file://%{dep:opam-repo-c1d23f0e})))))
+
+(rule
+ (targets opam-archive-c7f8804c.tar.gz)
+ (action (run wget --quiet -O %{targets} https://github.com/ocaml/opam-repository/archive/c7f8804c.tar.gz)))
+
+(rule
+  (targets opam-repo-c7f8804c)
+  (action
+   (progn
+    (run mkdir -p %{targets})
+    (run tar -C %{targets} -xzf %{dep:opam-archive-c7f8804c.tar.gz} --strip-components=1))))
+
+(rule
+  (targets root-c7f8804c)
+  (action
+   (progn
+    (ignore-stdout
+    (run %{bin:opam} init --root=%{targets}
+           --no-setup --bypass-checks --no-opamrc --bare
+           file://%{dep:opam-repo-c7f8804c})))))
 
 (rule
  (targets opam-archive-f372039d.tar.gz)
