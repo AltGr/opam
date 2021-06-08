@@ -43,13 +43,23 @@ let mk_or ctx = function
   | None -> None
   | Some [] -> None
   | Some [p] -> Some p
-  | Some l -> Some (Z3.Boolean.mk_or ctx l)
+  | Some l ->
+    if List.exists Z3.Boolean.is_true l then
+      Some (Z3.Boolean.mk_true ctx)
+    else
+      Some (Z3.Boolean.mk_or ctx
+              (List.filter OpamStd.Op.(not @* Z3.Boolean.is_false) l))
 
 let mk_and ctx = function
   | None -> None
   | Some [] -> None
   | Some [p] -> Some p
-  | Some l -> Some (Z3.Boolean.mk_and ctx l)
+  | Some l ->
+    if List.exists Z3.Boolean.is_false l then
+      Some (Z3.Boolean.mk_false ctx)
+    else
+      Some (Z3.Boolean.mk_and ctx
+              (List.filter OpamStd.Op.(not @* Z3.Boolean.is_true) l))
 
 let ( @^ ) opt l = match opt with
   | None -> l
@@ -139,22 +149,45 @@ let def_packages ctx (_preamble, universe, _request) =
               @^ e)
             cudf_depends_map
             []
-          |> OpamStd.Option.some
+        in
+        let conflicts =
+          let conflicts =
+            List.filter (fun cs -> cs <> (pkg.Cudf.package, None))
+              pkg.Cudf.conflicts
+          in
+          mk_or ctx @@ xrmap
+            (expand_constraint pkg)
+            conflicts
+          >>| Z3.Boolean.mk_not ctx
+        in
+        let cft_deps =
+          Some (conflicts @^ depends)
           |> mk_and ctx
           >>| Z3.Boolean.mk_implies ctx (psym_exn pkg)
         in
-        let conflicts =
-          mk_or ctx @@ xrmap
-             (expand_constraint pkg)
-             pkg.Cudf.conflicts
-          >>| fun c ->
-          Z3.Boolean.mk_implies ctx (psym_exn pkg) (Z3.Boolean.mk_not ctx c)
-        in
-        depends @^ conflicts @^ e)
+        cft_deps @^ e)
       def_exprs
       universe
   in
-  List.rev def_exprs,
+  let self_conflicts =
+    Cudf.fold_packages_by_name (fun e name pkgs ->
+        let zero = Z3.Arithmetic.Integer.mk_numeral_i ctx 0 in
+        let one = Z3.Arithmetic.Integer.mk_numeral_i ctx 1 in
+        let cft_pkgs =
+          List.filter (fun p -> List.mem (name, None) p.Cudf.conflicts) pkgs
+        in
+        if List.length cft_pkgs >= 2 then
+          Z3.Arithmetic.mk_ge ctx one
+            (Z3.Arithmetic.mk_add ctx
+               (List.map
+                  (fun p -> Z3.Boolean.mk_ite ctx (psym_exn p) one zero)
+                  cft_pkgs))
+          :: e
+        else e)
+      []
+      universe
+  in
+  List.rev_append self_conflicts (List.rev def_exprs),
   psym
 
 let def_request ctx (_preamble, universe, request) psym =
@@ -413,9 +446,9 @@ let call ~criteria ?timeout (preamble, universe, _ as cudf) =
     def_criteria ctx opt cudf psym (Syntax.criteria_of_string criteria)
   in
   log "Resolving...";
-  (match OpamStd.Env.getopt "Z3DEBUG" with
-   | None -> ()
-   | Some f ->
+  (match Sys.getenv "OPAMZ3DEBUG" with
+   | exception Not_found -> ()
+   | f ->
      let debug = open_out (f^".smt2") in
      output_string debug (Z3.Optimize.to_string opt);
      close_out debug);
