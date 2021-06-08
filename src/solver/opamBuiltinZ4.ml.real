@@ -242,103 +242,164 @@ type sign = Plus | Minus
 
 type criterion = sign * filter * property
 
+(* let rec simplify_condition e =
+ *   if Z3.Boolean.is_and e then
+ *     let conj = Z3.Expr.get_args e in
+ *     List.fold_left (fun acc e ->
+ *         let e = simplify_condition e in
+ *         if Z3.Boolean.is_
+ *   Z3.Expr.simplify (Z3.Boolean.mk_and ctx cond) None in *)
+
 let def_criterion ctx opt (preamble, universe, request as cudf) psym
     (sign, filter, property : criterion) =
   let open P(struct let ctx = ctx let psym = psym end) in
   let integer i = Z3.Arithmetic.Integer.mk_numeral_i ctx i in
   let zero = integer 0 in
-  let filter_f prop propjoin = match filter with
+  let one = integer 1 in
+  let false_ = Z3.Boolean.mk_false ctx in
+  let true_ = Z3.Boolean.mk_true ctx in
+  let filter_f = match filter with (* name -> [condition, version; ...] *)
     | Installed ->
-      fun name _ -> prop name (psym_exn name)
+      fun name -> [ pinstalled name, psym_exn name ]
     | Changed ->
-      fun name pkgs ->
-        let inst_v =
-          try (List.find (fun p -> p.Cudf.installed) pkgs).Cudf.version
-          with Not_found -> 0
-        in
-        Z3.Boolean.mk_ite ctx (pveq name inst_v) (prop name zero)
-          (propjoin [ prop name (psym_exn name);
-                      prop name (integer inst_v) ])
+      (fun name ->
+         match Cudf.get_installed universe name with
+         | [] -> [ pinstalled name, psym_exn name ]
+         | p::_ ->
+           [ pvneq name p.Cudf.version, integer p.Cudf.version;
+             Z3.Boolean.mk_and ctx
+               [pinstalled name; pvneq name p.Cudf.version],
+             psym_exn name ])
     | Removed ->
-      (fun name pkgs ->
-         match List.find (fun p -> p.Cudf.installed) pkgs with
-         | inst_p -> prop name (integer inst_p.Cudf.version)
-         | exception Not_found -> zero)
+       (fun name ->
+         match Cudf.get_installed universe name with
+         | [] -> []
+         | p::_ -> [ Z3.Boolean.mk_not ctx (pinstalled name),
+                     integer p.Cudf.version ])
     | New ->
-      (fun name pkgs ->
-         match List.find (fun p -> p.Cudf.installed) pkgs with
-         | _inst_p -> zero
-         | exception Not_found -> prop name (psym_exn name))
+      (fun name ->
+         match Cudf.get_installed universe name with
+         | [] -> [ pinstalled name, psym_exn name ]
+         | p::_ -> [])
     | Upgraded ->
-      (fun name pkgs ->
-         match List.find (fun p -> p.Cudf.installed) pkgs with
-         | inst_p ->
-           Z3.Boolean.mk_ite ctx
-             (pconstr name Z3.Arithmetic.mk_gt inst_p.Cudf.version)
-             (prop name (psym_exn name))
-             zero
-         | exception Not_found -> zero)
+      (fun name ->
+         match Cudf.get_installed universe name with
+         | [] -> []
+         | p::_ ->
+           [ pconstr name Z3.Arithmetic.mk_gt p.Cudf.version,
+             psym_exn name ])
     | Downgraded ->
-      (fun name pkgs ->
-         match List.find (fun p -> p.Cudf.installed) pkgs with
-         | inst_p ->
-           Z3.Boolean.mk_ite ctx
-             (pconstr name Z3.Arithmetic.mk_lt inst_p.Cudf.version)
-             (prop name (psym_exn name))
-             zero
-         | exception Not_found -> zero)
+      (fun name ->
+         match Cudf.get_installed universe name with
+         | [] -> []
+         | p::_ ->
+           [ pconstr name Z3.Arithmetic.mk_lt p.Cudf.version,
+             psym_exn name ])
     | Requested ->
-      (fun name _ ->
+      (fun name ->
          if List.exists (fun (n, _) -> n = name) request.Cudf.install ||
             List.exists (fun (n, _) -> n = name) request.Cudf.upgrade
-         then prop name (psym_exn name)
-         else zero)
+         then [ true_, psym_exn name ]
+         else [])
+  in
+  let ite cond t e =
+    if Z3.Expr.equal t e then t else
+    let cond = Z3.Expr.simplify (Z3.Boolean.mk_and ctx cond) None in
+    if Z3.Boolean.is_true cond then t
+    else if Z3.Boolean.is_false cond then e
+    else Z3.Boolean.mk_ite ctx cond t e
   in
   let value_f = match property with
     | None ->
-      fun name v ->
-        if v = zero then zero
-        else Z3.Boolean.mk_ite ctx (pconstr name Z3.Arithmetic.mk_gt 0) (integer 1) zero
+      fun name ->
+        List.map (fun (cond, v) -> ite [cond] one zero)
+          (filter_f name)
     | Some prop ->
-      let prop_values name =
-        List.map (fun p ->
-            p.Cudf.version,
-            match Cudf.lookup_typed_package_property p prop with
-            | `Int n | `Nat n -> n
-            | `Bool true -> 1
-            | `Bool false -> 0
-            | _ -> 0
-            | exception Not_found ->
-              match List.assoc prop preamble.Cudf.property with
-              | `Int (Some n) | `Nat (Some n) -> n
-              | `Bool (Some true) -> 1
-              | `Bool (Some false) -> 0
-              | _ -> 0
-              | exception Not_found ->
-                failwith ("Undefined CUDF property: "^prop))
-          (Cudf.lookup_packages universe name)
-      in
-      (* fixme: simplify what this generates (esp. for version-lag) *)
-      fun name v ->
-        List.fold_left (fun acc (vers, param) ->
-            if param = 0 then acc else
-              Z3.Boolean.mk_ite ctx (Z3.Boolean.mk_eq ctx v (integer vers))
-                (integer param)
+      match List.assoc prop preamble.Cudf.property with
+      | `Bool (None | Some false) ->
+        fun name ->
+          List.map (fun (condf, v) ->
+              let cond =
+                List.filter (fun p ->
+                    try Cudf.lookup_typed_package_property p prop = `Bool true
+                    with Not_found -> false)
+                  (Cudf.lookup_packages universe name)
+                |> List.map (fun p -> Z3.Boolean.mk_eq ctx v (integer p.Cudf.version))
+                |> Z3.Boolean.mk_or ctx
+              in
+              ite [condf; cond] one zero)
+            (filter_f name)
+      | `Bool (Some true) ->
+        fun name ->
+          List.map (fun (condf, v) ->
+              let cond =
+                List.filter (fun p ->
+                    try Cudf.lookup_typed_package_property p prop = `Bool false
+                    with Not_found -> false)
+                  (Cudf.lookup_packages universe name)
+                |> List.map (fun p -> Z3.Boolean.mk_eq ctx v (integer p.Cudf.version))
+                |> Z3.Boolean.mk_or ctx
+                |> Z3.Boolean.mk_not ctx
+              in
+              ite [condf; cond] one zero)
+            (filter_f name)
+      | `Int default | `Nat default ->
+        fun name ->
+          let vmap =
+            List.map (fun p ->
+                p.Cudf.version,
+                match Cudf.lookup_typed_package_property p prop with
+                | `Int n | `Nat n -> n
+                | _ -> failwith ("Invalid CUDF property: "^prop)
+                | exception Not_found ->
+                  match default with Some d -> d | None ->
+                    failwith ("Missing CUDF property: "^prop))
+              (Cudf.lookup_packages universe name)
+          in
+          let maxv = List.fold_left (fun acc (v, _) -> max acc v) 0 vmap in
+          if List.for_all (fun (v, prop) -> prop = maxv - v) vmap &&
+             List.length vmap >= 2 then
+            (* Optimisation for version-lag *)
+            List.map (fun (condf, v) ->
+                ite [condf]
+                  (Z3.Arithmetic.mk_sub ctx [integer maxv; v])
+                  zero)
+              (filter_f name)
+          else
+          let revmap =
+            List.fold_left (fun acc (v, p) ->
+                OpamStd.IntMap.update p (fun l -> v::l) [] acc)
+              OpamStd.IntMap.empty
+              vmap
+          in
+          List.fold_left (fun acc (condf, v) ->
+              OpamStd.IntMap.fold (fun pval vs acc ->
+                  ite [condf;
+                       Z3.Boolean.mk_or ctx (List.map (pveq name) vs)]
+                    (integer pval)
+                    zero
+                  :: acc)
+                revmap
                 acc)
-          zero
-          (prop_values name)
+            []
+            (filter_f name)
+      | _ -> failwith ("Can't optimise on non bool/int CUDF property: "^prop)
   in
   let crits =
-    Cudf.fold_packages_by_name (fun e name pkgs ->
-        filter_f value_f (Z3.Arithmetic.mk_add ctx) name pkgs
-        :: e)
-      []
-      universe
+    Cudf.fold_packages_by_name (fun acc name _ ->
+        let cs = value_f name in
+        List.rev_append
+          (List.filter (fun c -> c <> zero) cs)
+          acc)
+      [] universe
   in
-  OpamStd.Option.some @@
-  (match sign with Plus -> Z3.Optimize.maximize | Minus -> Z3.Optimize.minimize)
-    opt
-    (Z3.Arithmetic.mk_add ctx crits)
+  match crits with
+  | [] -> None
+  | cs ->
+    Some
+      ((match sign with Plus -> Z3.Optimize.maximize | Minus -> Z3.Optimize.minimize)
+         opt
+         (Z3.Arithmetic.mk_add ctx cs))
 
 let def_criteria ctx opt cudf psym crits =
   List.map (def_criterion ctx opt cudf psym) crits
